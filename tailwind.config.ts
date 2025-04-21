@@ -52,6 +52,15 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+                raksha: {
+                    purple: '#9b87f5',
+                    'purple-dark': '#7E69AB',
+                    pink: '#FFDEE2',
+                    blue: '#D3E4FD',
+                    dark: '#1A1F2C',
+                    gray: '#8E9196',
+                    'light-gray': '#F1F0FB'
+                },
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
