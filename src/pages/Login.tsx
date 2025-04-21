@@ -51,8 +51,8 @@ const Login = () => {
     try {
       await signIn(values.email, values.password);
       navigate("/");
-    } catch (error) {
-      console.error("Login error:", error);
+    } catch (authError) {
+      console.error("Login error:", authError);
       toast({
         variant: "destructive",
         title: "Login Failed",
@@ -112,13 +112,6 @@ const Login = () => {
                     </FormItem>
                   )}
                 />
-                
-                {error && (
-                  <div className="bg-red-50 text-red-600 p-3 rounded-md flex items-center text-sm">
-                    <AlertCircle className="h-4 w-4 mr-2" />
-                    {error}
-                  </div>
-                )}
                 
                 <Button 
                   type="submit" 

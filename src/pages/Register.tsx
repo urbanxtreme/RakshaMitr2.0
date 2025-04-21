@@ -62,8 +62,8 @@ const Register = () => {
         description: "Welcome to RakshaMitr! You can now log in.",
       });
       navigate("/login");
-    } catch (error) {
-      console.error("Registration error:", error);
+    } catch (registrationError) {
+      console.error("Registration error:", registrationError);
       toast({
         variant: "destructive",
         title: "Registration Failed",
@@ -151,13 +151,6 @@ const Register = () => {
                     </FormItem>
                   )}
                 />
-                
-                {error && (
-                  <div className="bg-red-50 text-red-600 p-3 rounded-md flex items-center text-sm">
-                    <AlertCircle className="h-4 w-4 mr-2" />
-                    {error}
-                  </div>
-                )}
                 
                 <Button 
                   type="submit" 
