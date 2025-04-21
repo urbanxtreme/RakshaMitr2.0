@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    const { error: signUpError } = await supabase.auth.signUp({
+    const { error: signUpError, data } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -61,15 +61,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       },
     });
-    if (signUpError) throw signUpError;
-
-    // Update profile
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({ full_name: fullName })
-      .eq('id', user?.id);
     
-    if (profileError) throw profileError;
+    if (signUpError) throw signUpError;
+    
+    // We don't need to manually update the profiles table
+    // The trigger we created in the database will handle this automatically
+    // Only update additional info if needed after successful signup
+    if (data.user) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ full_name: fullName })
+        .eq('id', data.user.id);
+      
+      if (profileError) {
+        console.error("Failed to update profile, but signup was successful:", profileError);
+        // Don't throw here, as the signup was successful
+      }
+    }
   };
 
   const signOut = async () => {
