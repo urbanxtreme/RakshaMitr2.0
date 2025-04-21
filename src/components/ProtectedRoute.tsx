@@ -1,13 +1,20 @@
 
 import { Navigate, Outlet } from "react-router-dom";
 import Navbar from "@/components/Navbar";
+import { useAuth } from "@/contexts/AuthContext";
 
 const ProtectedRoute = () => {
-  // For now, we'll simulate authentication check
-  // Later this will be replaced with proper auth checks using a context
-  const isAuthenticated = localStorage.getItem("auth") === "true";
+  const { user, loading } = useAuth();
   
-  if (!isAuthenticated) {
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-raksha-purple"></div>
+      </div>
+    );
+  }
+  
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 

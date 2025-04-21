@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
+import { useAuth } from "@/contexts/AuthContext";
 import { 
   Card,
   CardContent,
@@ -23,6 +24,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Shield } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 const formSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -36,8 +38,9 @@ const formSchema = z.object({
 
 const Register = () => {
   const navigate = useNavigate();
+  const { signUp } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -51,22 +54,21 @@ const Register = () => {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
-    setError(null);
     
     try {
-      // In a real app, this would be an API call to your backend
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Simulating successful registration
-      localStorage.setItem("auth", "true");
-      localStorage.setItem("user", JSON.stringify({ 
-        name: values.name, 
-        email: values.email 
-      }));
-      
-      navigate("/");
+      await signUp(values.email, values.password, values.name);
+      toast({
+        title: "Registration Successful",
+        description: "Welcome to RakshaMitr! You can now log in.",
+      });
+      navigate("/login");
     } catch (error) {
-      setError("Registration failed. Please try again.");
+      console.error("Registration error:", error);
+      toast({
+        variant: "destructive",
+        title: "Registration Failed",
+        description: "Please try again with different credentials.",
+      });
     } finally {
       setIsLoading(false);
     }
