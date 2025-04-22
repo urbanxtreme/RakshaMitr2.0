@@ -61,7 +61,7 @@ const SosButton = ({ onActivate }: SosButtonProps) => {
             if (!data.success) {
               if (data.message === "No emergency contacts found") {
                 toast({
-                  variant: "destructive",  // Changed from "warning" to "destructive"
+                  variant: "destructive",  
                   title: "No Contacts Found",
                   description: "Please add emergency contacts before sending alerts."
                 });
@@ -78,7 +78,7 @@ const SosButton = ({ onActivate }: SosButtonProps) => {
           } catch (error) {
             console.error("Error sending SOS alerts:", error);
             toast({
-              variant: "destructive",
+              variant: "destructive", 
               title: "Alert Error",
               description: error.message || "Failed to send emergency alerts. Please try again."
             });
