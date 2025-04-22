@@ -2,7 +2,9 @@
 import { useState } from "react";
 import { AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface SosButtonProps {
   onActivate: (location: { lat: number; lng: number }) => void;
@@ -12,6 +14,7 @@ const SosButton = ({ onActivate }: SosButtonProps) => {
   const [isActive, setIsActive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const handlePress = async () => {
     if (isLoading) return;
@@ -31,16 +34,35 @@ const SosButton = ({ onActivate }: SosButtonProps) => {
       }
       
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
+        async (position) => {
+          const { latitude: lat, longitude: lng } = position.coords;
           
-          // In a real app, this would send the alert
-          onActivate({ lat: latitude, lng: longitude });
-          
-          toast({
-            title: "SOS Alert Sent",
-            description: "Your emergency contacts have been notified of your situation.",
-          });
+          try {
+            // Send SMS alerts via edge function
+            const { error: smsError } = await supabase.functions.invoke('send-sos-sms', {
+              body: {
+                location: { lat, lng },
+                userId: user?.id
+              }
+            });
+
+            if (smsError) throw smsError;
+            
+            // Call the original onActivate handler
+            onActivate({ lat, lng });
+            
+            toast({
+              title: "SOS Alert Sent",
+              description: "Emergency contacts have been notified with your location.",
+            });
+          } catch (error) {
+            console.error("Error sending SOS alerts:", error);
+            toast({
+              variant: "destructive",
+              title: "Alert Error",
+              description: "Failed to send emergency alerts. Please try again."
+            });
+          }
           
           // Reset after 3 seconds
           setTimeout(() => {
