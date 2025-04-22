@@ -45,12 +45,15 @@ const SosButton = ({ onActivate }: SosButtonProps) => {
             onActivate(location);
             
             // Send SMS alerts via edge function with better error handling
+            console.log("Calling edge function with location:", location);
             const { data, error } = await supabase.functions.invoke('send-sos-sms', {
               body: {
                 location,
                 userId: user?.id
               }
             });
+
+            console.log("Edge function response:", { data, error });
 
             if (error) {
               console.error("Edge function error:", error);
@@ -61,11 +64,12 @@ const SosButton = ({ onActivate }: SosButtonProps) => {
             if (!data.success) {
               if (data.message === "No emergency contacts found") {
                 toast({
-                  variant: "destructive",  
+                  variant: "destructive",
                   title: "No Contacts Found",
                   description: "Please add emergency contacts before sending alerts."
                 });
               } else {
+                console.error("API reported failure:", data);
                 throw new Error(data.message || "Failed to send emergency alerts");
               }
             } else {

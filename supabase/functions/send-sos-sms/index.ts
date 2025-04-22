@@ -75,11 +75,23 @@ serve(async (req) => {
     const results = []
     for (const contact of contacts) {
       try {
-        console.log(`Sending SMS to ${contact.name} at ${contact.phone_number}`)
+        // Format the phone number to ensure it has the correct format for Twilio
+        let phoneNumber = contact.phone_number.trim()
+        
+        // Log phone details for debugging
+        console.log(`Sending SMS to ${contact.name} at ${phoneNumber}`)
+        
+        // Ensure phone number has appropriate format for international dialing
+        // Twilio requires E.164 format (+[country code][phone number])
+        if (!phoneNumber.startsWith('+')) {
+          // If number doesn't start with +, assume it needs the plus
+          phoneNumber = '+' + phoneNumber
+          console.log(`Reformatted phone number to: ${phoneNumber}`)
+        }
         
         const message = await client.messages.create({
           body: `EMERGENCY ALERT: Your contact needs immediate assistance! Their current location: ${googleMapsLink}`,
-          to: contact.phone_number,
+          to: phoneNumber,
           from: twilioPhone
         })
         
@@ -95,7 +107,7 @@ serve(async (req) => {
         results.push({
           success: false,
           contact: contact.name,
-          error: smsError.message
+          error: smsError.message || 'Unknown error'
         })
       }
     }
