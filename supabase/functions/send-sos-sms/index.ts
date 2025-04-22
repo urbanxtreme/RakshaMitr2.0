@@ -21,17 +21,8 @@ serve(async (req) => {
       throw new Error('Missing required parameters')
     }
 
-    // Initialize Twilio client with explicit error handling
-    let client
-    try {
-      client = twilio(
-        Deno.env.get('TWILIO_ACCOUNT_SID'),
-        Deno.env.get('TWILIO_AUTH_TOKEN')
-      )
-    } catch (twilioInitError) {
-      console.error("Error initializing Twilio client:", twilioInitError)
-      throw new Error('Twilio credentials error')
-    }
+    console.log("Processing SOS request for user:", userId)
+    console.log("Location data:", JSON.stringify(location))
 
     // Create Supabase client
     const supabaseUrl = 'https://jolerxrpmyhrrbplhegd.supabase.co'
@@ -49,6 +40,8 @@ serve(async (req) => {
       throw new Error('Failed to fetch emergency contacts')
     }
 
+    console.log(`Found ${contacts?.length || 0} emergency contacts`)
+
     if (!contacts || contacts.length === 0) {
       return new Response(
         JSON.stringify({ success: false, message: 'No emergency contacts found' }),
@@ -56,17 +49,42 @@ serve(async (req) => {
       )
     }
 
+    // Initialize Twilio client with explicit error handling
+    let client
+    try {
+      const accountSid = Deno.env.get('TWILIO_ACCOUNT_SID')
+      const authToken = Deno.env.get('TWILIO_AUTH_TOKEN')
+      const twilioPhone = Deno.env.get('TWILIO_PHONE_NUMBER')
+      
+      console.log(`Twilio config - SID: ${accountSid ? "Set" : "Missing"}, Token: ${authToken ? "Set" : "Missing"}, Phone: ${twilioPhone || "Missing"}`)
+      
+      if (!accountSid || !authToken || !twilioPhone) {
+        throw new Error('Missing Twilio credentials')
+      }
+      
+      client = twilio(accountSid, authToken)
+    } catch (twilioInitError) {
+      console.error("Error initializing Twilio client:", twilioInitError)
+      throw new Error('Twilio credentials error: ' + twilioInitError.message)
+    }
+
     const googleMapsLink = `https://www.google.com/maps?q=${location.lat},${location.lng}`
+    const twilioPhone = Deno.env.get('TWILIO_PHONE_NUMBER')
     
     // Send SMS to each contact with better error handling
     const results = []
     for (const contact of contacts) {
       try {
+        console.log(`Sending SMS to ${contact.name} at ${contact.phone_number}`)
+        
         const message = await client.messages.create({
           body: `EMERGENCY ALERT: Your contact needs immediate assistance! Their current location: ${googleMapsLink}`,
           to: contact.phone_number,
-          from: Deno.env.get('TWILIO_PHONE_NUMBER')
+          from: twilioPhone
         })
+        
+        console.log(`SMS sent successfully to ${contact.name}, SID: ${message.sid}`)
+        
         results.push({
           success: true,
           contact: contact.name,
