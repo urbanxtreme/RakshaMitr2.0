@@ -30,37 +30,57 @@ const SosButton = ({ onActivate }: SosButtonProps) => {
           title: "Geolocation Error",
           description: "Your browser doesn't support location services."
         });
+        setIsActive(false);
+        setIsLoading(false);
         return;
       }
       
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude: lat, longitude: lng } = position.coords;
+          const location = { lat, lng };
           
           try {
-            // Send SMS alerts via edge function
-            const { error: smsError } = await supabase.functions.invoke('send-sos-sms', {
+            // First call onActivate to ensure local functionality works
+            onActivate(location);
+            
+            // Send SMS alerts via edge function with better error handling
+            const { data, error } = await supabase.functions.invoke('send-sos-sms', {
               body: {
-                location: { lat, lng },
+                location,
                 userId: user?.id
               }
             });
 
-            if (smsError) throw smsError;
+            if (error) {
+              console.error("Edge function error:", error);
+              throw new Error(error.message || "Failed to send emergency alerts");
+            }
+
+            // Handle response from edge function
+            if (!data.success) {
+              if (data.message === "No emergency contacts found") {
+                toast({
+                  variant: "warning",
+                  title: "No Contacts Found",
+                  description: "Please add emergency contacts before sending alerts."
+                });
+              } else {
+                throw new Error(data.message || "Failed to send emergency alerts");
+              }
+            } else {
+              toast({
+                title: "SOS Alert Sent",
+                description: "Emergency contacts have been notified with your location.",
+              });
+            }
             
-            // Call the original onActivate handler
-            onActivate({ lat, lng });
-            
-            toast({
-              title: "SOS Alert Sent",
-              description: "Emergency contacts have been notified with your location.",
-            });
           } catch (error) {
             console.error("Error sending SOS alerts:", error);
             toast({
               variant: "destructive",
               title: "Alert Error",
-              description: "Failed to send emergency alerts. Please try again."
+              description: error.message || "Failed to send emergency alerts. Please try again."
             });
           }
           
@@ -80,7 +100,7 @@ const SosButton = ({ onActivate }: SosButtonProps) => {
           setIsActive(false);
           setIsLoading(false);
         },
-        { enableHighAccuracy: true }
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
       );
     } catch (error) {
       console.error("SOS error:", error);

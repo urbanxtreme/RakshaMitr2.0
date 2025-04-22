@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import ContactCard, { Contact } from "@/components/ContactCard";
 import AddContactForm from "@/components/AddContactForm";
@@ -38,13 +39,17 @@ const Contacts = () => {
       
       if (error) throw error;
       
-      const formattedContacts = data.map(contact => ({
-        id: contact.id,
-        name: contact.name,
-        phone: contact.phone_number
-      }));
-      
-      setContacts(formattedContacts);
+      if (data) {
+        const formattedContacts = data.map(contact => ({
+          id: contact.id,
+          name: contact.name,
+          phone: contact.phone_number
+        }));
+        
+        setContacts(formattedContacts);
+      } else {
+        setContacts([]);
+      }
     } catch (error) {
       console.error("Error fetching contacts:", error);
       toast({
@@ -94,16 +99,18 @@ const Contacts = () => {
         
         if (error) throw error;
         
-        const contact = {
-          id: data[0].id,
-          name: newContact.name,
-          phone: newContact.phone
-        };
-        setContacts([...contacts, contact]);
-        toast({
-          title: "Contact Added",
-          description: `${newContact.name} has been added to your emergency contacts.`,
-        });
+        if (data && data.length > 0) {
+          const contact = {
+            id: data[0].id,
+            name: newContact.name,
+            phone: newContact.phone
+          };
+          setContacts([...contacts, contact]);
+          toast({
+            title: "Contact Added",
+            description: `${newContact.name} has been added to your emergency contacts.`,
+          });
+        }
       }
     } catch (error) {
       console.error("Error saving contact:", error);
@@ -114,6 +121,9 @@ const Contacts = () => {
       });
     }
     setIsAddDialogOpen(false);
+    
+    // Fetch contacts again to ensure UI is in sync with database
+    fetchContacts();
   };
 
   const handleEditContact = (contact: Contact) => {
@@ -200,6 +210,9 @@ const Contacts = () => {
               <DialogTitle>
                 {editingContact ? "Edit Contact" : "Add Emergency Contact"}
               </DialogTitle>
+              <DialogDescription>
+                Contact phone numbers should include country code (e.g., +1 for US)
+              </DialogDescription>
             </DialogHeader>
             <AddContactForm
               onAdd={handleAddContact}
