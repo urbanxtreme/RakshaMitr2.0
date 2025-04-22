@@ -1,32 +1,73 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import SosLogCard, { SosLog } from "@/components/SosLogCard";
 import { format } from "date-fns";
-
-// Sample data for demo
-const initialLogs: SosLog[] = [
-  {
-    id: "1",
-    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000),
-    location: { lat: 28.6139, lng: 77.2090 },
-    status: "delivered",
-  },
-  {
-    id: "2",
-    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
-    location: { lat: 28.5555, lng: 77.1855 },
-    status: "delivered",
-  },
-  {
-    id: "3",
-    timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-    location: { lat: 28.7041, lng: 77.1025 },
-    status: "sent",
-  },
-];
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { Loader2 } from "lucide-react";
 
 const SosHistory = () => {
-  const [logs] = useState<SosLog[]>(initialLogs);
+  const [logs, setLogs] = useState<SosLog[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
+  
+  useEffect(() => {
+    if (user?.id) {
+      fetchSosLogs(user.id);
+    }
+  }, [user?.id]);
+  
+  // Fetch user's SOS logs from database
+  async function fetchSosLogs(userId: string) {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Fetch from sos_alerts table (using the correct table name from schema)
+      const { data, error } = await supabase
+        .from('sos_alerts')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+        
+      if (error) throw error;
+      
+      // Map database records to SosLog format
+      // Adjust field names to match actual database structure
+      const formattedLogs: SosLog[] = (data?.map(log => {
+        // Convert database status to one of our expected status types
+        let mappedStatus: "sent" | "delivered" | "failed";
+        
+        if (!log.status || log.status === "sent") {
+          mappedStatus = "sent";
+        } else if (log.status === "delivered" || log.status === "success") {
+          mappedStatus = "delivered";
+        } else if (log.status === "failed" || log.status === "error") {
+          mappedStatus = "failed";
+        } else {
+          mappedStatus = "sent"; // Default fallback
+        }
+        
+        return {
+          id: log.id,
+          timestamp: new Date(log.created_at),
+          location: {
+            lat: log.latitude || 0,
+            lng: log.longitude || 0
+          },
+          status: mappedStatus
+        };
+      }) || []);
+      
+      setLogs(formattedLogs);
+    } catch (err) {
+      console.error('Error fetching SOS logs:', err);
+      setError('Failed to load SOS history. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  }
   
   // Group logs by date
   const groupedLogs = logs.reduce((acc: Record<string, SosLog[]>, log) => {
@@ -48,7 +89,15 @@ const SosHistory = () => {
           </p>
         </div>
         
-        {Object.keys(groupedLogs).length === 0 ? (
+        {loading ? (
+          <div className="flex justify-center py-12 animate-fade-in">
+            <Loader2 className="h-8 w-8 animate-spin text-raksha-blue" />
+          </div>
+        ) : error ? (
+          <div className="text-center py-12 animate-fade-in">
+            <p className="text-red-500">{error}</p>
+          </div>
+        ) : Object.keys(groupedLogs).length === 0 ? (
           <div className="text-center py-12 animate-fade-in">
             <p className="text-muted-foreground">No SOS alerts have been sent yet.</p>
           </div>

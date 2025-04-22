@@ -1,7 +1,5 @@
-
 import { Link, useLocation } from "react-router-dom";
-import { Bell, Home, Phone, User, Clock } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Bell, Home, Phone, User, Clock, Shield } from "lucide-react";
 
 const Navbar = () => {
   const location = useLocation();
@@ -14,28 +12,41 @@ const Navbar = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-50">
-      <div className="flex items-center justify-around h-16">
-        {navItems.map(({ icon: Icon, path, label }) => (
-          <Link 
-            key={path} 
-            to={path} 
-            className={cn(
-              "flex flex-col items-center justify-center px-4 py-2 text-xs font-medium transition-colors",
-              location.pathname === path 
-                ? "text-raksha-purple" 
-                : "text-gray-500 hover:text-raksha-purple-dark"
-            )}
-          >
-            <Icon className={cn(
-              "h-6 w-6 mb-1",
-              location.pathname === path && "animate-bounce-soft"
-            )} />
-            <span>{label}</span>
-          </Link>
-        ))}
+    <div className="fixed top-0 left-0 right-0 z-50">
+      {/* Single-tier navbar with logo, tagline, and navigation */}
+      <div className="bg-gray-900 text-white px-4 py-2 flex items-center">
+        <div className="flex items-center gap-2">
+          <Shield className="h-6 w-6 text-purple-500" />
+          <span className="text-xl font-semibold text-purple-400">RakshaMitr</span>
+        </div>
+        <div className="ml-3 text-sm text-gray-400 italic hidden sm:block">
+          Step with might, we're your shield in every light
+        </div>
+        
+        {/* Navigation items pushed to right */}
+        <div className="ml-auto flex items-center gap-6">
+          {navItems.map(({ icon: Icon, path, label }) => (
+            <Link 
+              key={path} 
+              to={path} 
+              className={`
+                flex flex-col items-center justify-center px-1 py-1 text-xs font-medium transition-colors duration-200
+                ${location.pathname === path 
+                  ? "text-purple-400" 
+                  : "text-gray-400 hover:text-purple-300"}
+              `}
+            >
+              <Icon className={`
+                h-5 w-5 mb-1
+                ${location.pathname === path && "text-purple-400"}
+              `} />
+              <span>{label}</span>
+            </Link>
+          ))}
+          <Bell className="h-5 w-5 ml-2 text-gray-400 hover:text-purple-400 cursor-pointer" />
+        </div>
       </div>
-    </nav>
+    </div>
   );
 };
 

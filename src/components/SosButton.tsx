@@ -40,52 +40,112 @@ const SosButton = ({ onActivate }: SosButtonProps) => {
           const { latitude: lat, longitude: lng } = position.coords;
           const location = { lat, lng };
           
+          // First call onActivate to ensure local functionality works
+          onActivate(location);
+          
+          // Check if user exists and has an id before proceeding
+          if (!user || !user.id) {
+            toast({
+              variant: "destructive",
+              title: "Authentication Error",
+              description: "You must be logged in to send emergency alerts."
+            });
+            setIsActive(false);
+            setIsLoading(false);
+            return;
+          }
+          
+          let alertSent = false;
           try {
-            // First call onActivate to ensure local functionality works
-            onActivate(location);
-            
             // Send SMS alerts via edge function with better error handling
             console.log("Calling edge function with location:", location);
             const { data, error } = await supabase.functions.invoke('send-sos-sms', {
               body: {
                 location,
-                userId: user?.id
+                userId: user.id
               }
             });
 
             console.log("Edge function response:", { data, error });
 
+            // Handle errors from edge function directly
             if (error) {
               console.error("Edge function error:", error);
-              throw new Error(error.message || "Failed to send emergency alerts");
+              toast({
+                variant: "destructive",
+                title: "Alert Error",
+                description: error.message || "Failed to send emergency alerts"
+              });
+              return;
             }
 
-            // Handle response from edge function
-            if (!data.success) {
-              if (data.message === "No emergency contacts found") {
-                toast({
-                  variant: "destructive",
-                  title: "No Contacts Found",
-                  description: "Please add emergency contacts before sending alerts."
-                });
-              } else {
-                console.error("API reported failure:", data);
-                throw new Error(data.message || "Failed to send emergency alerts");
-              }
-            } else {
+            // Handle case when no contacts are found
+            if (data.message === "No emergency contacts found") {
               toast({
-                title: "SOS Alert Sent",
-                description: "Emergency contacts have been notified with your location.",
+                variant: "destructive",
+                title: "No Contacts Found",
+                description: "Please add emergency contacts before sending alerts."
               });
+              return;
             }
+
+            // Handle API failure with detailed error information
+            if (!data.success) {
+              console.error("API reported failure:", data);
+              
+              // Extract detailed error message if available
+              let errorMessage = "Failed to send emergency alerts";
+              
+              if (data.detailedMessage) {
+                errorMessage = data.detailedMessage;
+              } else if (data.results && data.results.length > 0) {
+                const failedResults = data.results.filter(result => !result.success);
+                if (failedResults.length > 0 && failedResults[0].error) {
+                  errorMessage = `SMS error: ${failedResults[0].error}`;
+                }
+              }
+              
+              toast({
+                variant: "destructive",
+                title: "Alert Error",
+                description: errorMessage
+              });
+              return;
+            }
+
+            // Success case
+            alertSent = true;
+            toast({
+              title: "SOS Alert Sent",
+              description: "Emergency contacts have been notified with your location.",
+            });
             
           } catch (error) {
             console.error("Error sending SOS alerts:", error);
-            toast({
-              variant: "destructive", 
-              title: "Alert Error",
-              description: error.message || "Failed to send emergency alerts. Please try again."
+            
+            let errorMessage = error.message || "Failed to send emergency alerts. Please try again.";
+            
+            // Check if error has details about Twilio issues
+            if (error.details && typeof error.details === 'string' && error.details.includes('Twilio')) {
+              errorMessage = `SMS service error: ${errorMessage}`;
+            }
+            
+            // Log detailed debug information
+            console.log("Complete error context:", {
+              errorObject: error,
+              errorMessage
             });
+            
+            toast({
+              variant: "destructive",
+              title: "Alert Error",
+              description: errorMessage
+            });
+          } finally {
+            // If we didn't successfully send an alert, provide additional guidance
+            if (!alertSent) {
+              console.log("Alert was not successfully sent");
+            }
           }
           
           // Reset after 3 seconds

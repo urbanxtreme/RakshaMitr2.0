@@ -1,6 +1,9 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Card, 
   CardContent,
@@ -16,20 +19,99 @@ import { BadgeHelp, LogOut, Shield, User } from "lucide-react";
 
 const Profile = () => {
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+  const [userProfile, setUserProfile] = useState<{
+    full_name?: string;
+    email?: string;
+  }>({});
+  
   const [settings, setSettings] = useState({
     notifications: true,
     locationSharing: true,
     autoAlert: false,
   });
+
+  // Fetch user profile data when component mounts
+  useEffect(() => {
+    if (user?.id) {
+      fetchUserProfile(user.id);
+      fetchUserSettings(user.id);
+    }
+  }, [user?.id]);
+
+  // Fetch user profile from the profiles table
+  async function fetchUserProfile(userId: string) {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+      
+      if (data) {
+        setUserProfile({
+          full_name: data.full_name,
+          email: user?.email
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  }
+
+  // Fetch user settings from localStorage or create defaults
+  // Note: In a real app, you would want to store these in the database
+  // For now, we'll use localStorage as a simple solution
+  async function fetchUserSettings(userId: string) {
+    try {
+      const savedSettings = localStorage.getItem(`user_settings_${userId}`);
+      if (savedSettings) {
+        setSettings(JSON.parse(savedSettings));
+      }
+      // If no settings found, use defaults (already set in state)
+    } catch (error) {
+      console.error('Error fetching user settings:', error);
+    }
+  }
+
+  // Save user settings to localStorage
+  // In a production app, you would save to database instead
+  async function saveSettings(newSettings: typeof settings) {
+    if (!user?.id) return;
+    
+    setLoading(true);
+    try {
+      // Save to localStorage
+      localStorage.setItem(`user_settings_${user.id}`, JSON.stringify(newSettings));
+      
+      toast({
+        title: "Settings saved",
+        description: "Your preferences have been updated."
+      });
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast({
+        variant: "destructive",
+        title: "Failed to save settings",
+        description: "Please try again later."
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
   
-  const handleLogout = () => {
-    localStorage.removeItem("auth");
-    localStorage.removeItem("user");
-    navigate("/login");
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate("/login");
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
   };
-  
-  // For demo, get user from localStorage or use a default
-  const user = JSON.parse(localStorage.getItem("user") || '{"name":"Jane Doe","email":"jane@example.com"}');
 
   return (
     <div className="min-h-screen pb-20 p-4 bg-gradient-to-b from-white to-raksha-blue/10">
@@ -52,8 +134,8 @@ const Profile = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-1">
-                <p className="font-medium">{user.name}</p>
-                <p className="text-sm text-muted-foreground">{user.email}</p>
+                <p className="font-medium">{userProfile.full_name || 'Loading...'}</p>
+                <p className="text-sm text-muted-foreground">{userProfile.email || user?.email || 'Loading...'}</p>
               </div>
             </CardContent>
           </Card>
@@ -81,8 +163,11 @@ const Profile = () => {
                   id="notifications"
                   checked={settings.notifications}
                   onCheckedChange={(checked) => {
-                    setSettings(prev => ({ ...prev, notifications: checked }));
+                    const newSettings = { ...settings, notifications: checked };
+                    setSettings(newSettings);
+                    saveSettings(newSettings);
                   }}
+                  disabled={loading}
                 />
               </div>
               
@@ -99,8 +184,11 @@ const Profile = () => {
                   id="location"
                   checked={settings.locationSharing}
                   onCheckedChange={(checked) => {
-                    setSettings(prev => ({ ...prev, locationSharing: checked }));
+                    const newSettings = { ...settings, locationSharing: checked };
+                    setSettings(newSettings);
+                    saveSettings(newSettings);
                   }}
+                  disabled={loading}
                 />
               </div>
               
@@ -117,8 +205,11 @@ const Profile = () => {
                   id="autoalert"
                   checked={settings.autoAlert}
                   onCheckedChange={(checked) => {
-                    setSettings(prev => ({ ...prev, autoAlert: checked }));
+                    const newSettings = { ...settings, autoAlert: checked };
+                    setSettings(newSettings);
+                    saveSettings(newSettings);
                   }}
+                  disabled={loading}
                 />
               </div>
             </CardContent>
